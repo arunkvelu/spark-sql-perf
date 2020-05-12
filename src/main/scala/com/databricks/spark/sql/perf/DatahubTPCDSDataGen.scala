@@ -1,12 +1,12 @@
 package com.databricks.spark.sql.perf
 import org.apache.spark.sql.SparkSession
 
-object TPCDSDataGen {
+object DatahubTPCDSDataGen {
 
   def main(args: Array[String]): Unit = {
 
     val spark = SparkSession.builder
-      .appName("DEXTPCDSDataGen")
+      .appName("DatahubTPCDSDataGen")
       .enableHiveSupport().getOrCreate()
 
     try {
@@ -27,11 +27,9 @@ object TPCDSDataGen {
       val shuffle = true
 
       // s3/dbfs path to generate the data to.
-      //val rootDir = s"s3a://dex-datasets/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull"
-      //val rootDir = s"s3a://dex-dev-us-west-2/dl/performance-datasets/tpcds/sf$scaleFactor-$format-datahub"
-      val rootDir = s"s3a://dex-dev-us-west-2/dl2/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
+      val rootDir = s"s3a://dex-dev-us-west-2/dl2/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-datahub"
       // name of database to be created.
-      val databaseName = s"dex_tpcds_sf${scaleFactor}" +
+      val databaseName = s"datahub_tpcds_sf${scaleFactor}" +
         s"""_${if (useDecimal) "with" else "no"}decimal""" +
         s"""_${if (useDate) "with" else "no"}date""" +
         s"""_${if (filterNull) "no" else "with"}nulls"""
