@@ -251,15 +251,24 @@ abstract class Tables(sqlContext: SQLContext, scaleFactor: String,
       if (overwrite) {
         sqlContext.sql(s"DROP TABLE IF EXISTS $databaseName.$name")
       }
+      import java.time.LocalDateTime
+      val startTime = LocalDateTime.now()
       if (!tableExists || overwrite) {
-        println(s"Creating external table $name in database $databaseName using data stored in $location.")
-        log.info(s"Creating external table $name in database $databaseName using data stored in $location.")
+        println(s"$startTime - Creating external table $name in database $databaseName using data stored in $location.")
+        log.info(s"$startTime - Creating external table $name in database $databaseName using data stored in $location.")
         sqlContext.createExternalTable(qualifiedTableName, location, format)
+        val endTime = LocalDateTime.now()
+        println(s"$endTime - Done external table $name in database $databaseName using data stored in $location.")
+        log.info(s"$endTime - Done external table $name in database $databaseName using data stored in $location.")
+
       }
       if (partitionColumns.nonEmpty && discoverPartitions) {
-        println(s"Discovering partitions for table $name.")
-        log.info(s"Discovering partitions for table $name.")
+        println(s"$startTime - Discovering partitions for table $name.")
+        log.info(s"$startTime - Discovering partitions for table $name.")
         sqlContext.sql(s"ALTER TABLE $databaseName.$name RECOVER PARTITIONS")
+        val endTime = LocalDateTime.now()
+        println(s"$endTime - Done discovering partitions for table $name.")
+        log.info(s"$endTime - Done discovering partitions for table $name.")
       }
     }
 
@@ -270,8 +279,10 @@ abstract class Tables(sqlContext: SQLContext, scaleFactor: String,
     }
 
     def analyzeTable(databaseName: String, analyzeColumns: Boolean = false): Unit = {
-      println(s"Analyzing table $name.")
-      log.info(s"Analyzing table $name.")
+      import java.time.LocalDateTime
+      val startTime = LocalDateTime.now()
+      println(s"$startTime - Analyzing table $name.")
+      log.info(s"$startTime - Analyzing table $name.")
       sqlContext.sql(s"ANALYZE TABLE $databaseName.$name COMPUTE STATISTICS")
       if (analyzeColumns) {
         val allColumns = fields.map(_.name).mkString(", ")
@@ -279,6 +290,10 @@ abstract class Tables(sqlContext: SQLContext, scaleFactor: String,
         log.info(s"Analyzing table $name columns $allColumns.")
         sqlContext.sql(s"ANALYZE TABLE $databaseName.$name COMPUTE STATISTICS FOR COLUMNS $allColumns")
       }
+      val endTime = LocalDateTime.now()
+      println(s"$endTime - Done analyzing table $name.")
+      log.info(s"$endTime - Done analyzing table $name.")
+
     }
   }
 

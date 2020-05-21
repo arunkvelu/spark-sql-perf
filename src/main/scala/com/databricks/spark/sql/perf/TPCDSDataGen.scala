@@ -13,7 +13,7 @@ object TPCDSDataGen {
 
       val sparkContext = spark.sparkContext
       val sqlContext = spark.sqlContext
-      val scaleFactor = "2"
+      val scaleFactor = "1000"
 
       // data format.
       val format = "parquet"
@@ -27,9 +27,8 @@ object TPCDSDataGen {
       val shuffle = true
 
       // s3/dbfs path to generate the data to.
-      //val rootDir = s"s3a://dex-datasets/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull"
-      //val rootDir = s"s3a://dex-dev-us-west-2/dl/performance-datasets/tpcds/sf$scaleFactor-$format-datahub"
-      val rootDir = s"s3a://dex-dev-us-west-2/dl2/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
+      //val rootDir = s"s3a://dex-dev-us-west-2/dl2/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
+      val rootDir = s"s3a://sandbox-dex-dev-us-west-2/dl/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
       // name of database to be created.
       val databaseName = s"dex_tpcds_sf${scaleFactor}" +
         s"""_${if (useDecimal) "with" else "no"}decimal""" +
@@ -48,20 +47,23 @@ object TPCDSDataGen {
       // Compress with snappy:
       sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy")
       // TPCDS has around 2000 dates.
-      // spark.conf.set("spark.sql.shuffle.partitions", "20")
+      spark.conf.set("spark.sql.shuffle.partitions", "2000")
       // Don't write too huge files.
       sqlContext.setConf("spark.sql.files.maxRecordsPerFile", "20000000")
 
-      val dsdgen_partitioned = 10 // recommended for SF10000+.
-      val dsdgen_nonpartitioned = 10 // small tables do not need much parallelism in generation.
-
+      val dsdgen_partitioned=10000 // recommended for SF10000+.
+      val dsdgen_nonpartitioned=10 // small tables do not need much parallelism in generation.
       // COMMAND ----------
 
       // val tableNames = Array("") // Array("") = generate all.
       //val tableNames = Array("call_center", "catalog_page", "catalog_returns", "catalog_sales", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "inventory", "item", "promotion", "reason", "ship_mode", "store", "store_returns", "store_sales", "time_dim", "warehouse", "web_page", "web_returns", "web_sales", "web_site") // all tables
 
       // generate all the small dimension tables
-      val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
+      import java.time.LocalDateTime
+
+      val startTime = LocalDateTime.now()
+      println(s"$startTime - Generating non partitioned tables.")
+/*      val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
       nonPartitionedTables.foreach { t => {
         tables.genData(
           location = rootDir,
@@ -74,7 +76,11 @@ object TPCDSDataGen {
           numPartitions = dsdgen_nonpartitioned)
       }
       }
-      println("Done generating non partitioned tables.")
+      val endTime = LocalDateTime.now()
+      println(s"${endTime} - Done generating non partitioned tables.")
+
+      val startTimeD = LocalDateTime.now()
+      println(s"$startTimeD - Generating partitioned tables.")
 
       // leave the biggest/potentially hardest tables to be generated last.
       val partitionedTables = Array("inventory", "web_returns", "catalog_returns", "store_returns", "web_sales", "catalog_sales", "store_sales")
@@ -90,7 +96,8 @@ object TPCDSDataGen {
           numPartitions = dsdgen_partitioned)
       }
       }
-      println("Done generating partitioned tables.")
+      val endTimeD = LocalDateTime.now()
+      println(s"$endTimeD - Done generating partitioned tables.")*/
 
       // COMMAND ----------
 
@@ -118,6 +125,10 @@ object TPCDSDataGen {
       // COMMAND ----------
 
       tables.analyzeTables(databaseName, analyzeColumns = true)
+      //sqlContext.sql(s"ALTER TABLE $databaseName.store_sales RECOVER PARTITIONS")
+      //sqlContext.sql(s"select count(1) from store_sales").show()
+      //sqlContext.sql(s"describe formatted store_sales").show(1000,false)
+
     }
     finally {
       spark.stop()

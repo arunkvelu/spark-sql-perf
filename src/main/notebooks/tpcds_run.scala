@@ -17,7 +17,7 @@ val databaseName = s"tpcds_sf${scaleFactor}" +
   s"""_${if (useDate) "with" else "no"}date""" +
   s"""_${if (filterNull) "no" else "with"}nulls"""
 
-val iterations = 2 // how many times to run the whole set of queries.
+val iterations = 1 // how many times to run the whole set of queries.
 
 val timeout = 60 // timeout in hours
 

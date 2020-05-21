@@ -1,0 +1,105 @@
+package com.databricks.spark.sql.perf
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, Encoders}
+object TPCDSQueries {
+
+  def main(args: Array[String]): Unit = {
+
+    val spark = SparkSession.builder
+      .appName("DEXTPCDSQueries")
+      .enableHiveSupport().getOrCreate()
+
+    try {
+
+      val sparkContext = spark.sparkContext
+      val sqlContext = spark.sqlContext
+
+      // Databricks notebook source
+      // MAGIC %md
+      // MAGIC This notebook runs spark-sql-perf TPCDS benchmark on and saves the result.
+
+      // COMMAND ----------
+
+      // Database to be used:
+      // TPCDS Scale factor
+      val scaleFactor = "1000"
+      // If false, float type will be used instead of decimal.
+      val useDecimal = true
+      // If false, string type will be used instead of date.
+      val useDate = true
+
+      // If true, rows with nulls in partition key will be thrown away.
+      val filterNull = false
+
+      val format = "parquet"
+
+      // name of database to be used.
+      val databaseName = s"dex_tpcds_sf${scaleFactor}" +
+        s"""_${if (useDecimal) "with" else "no"}decimal""" +
+        s"""_${if (useDate) "with" else "no"}date""" +
+        s"""_${if (filterNull) "no" else "with"}nulls"""
+
+      val iterations = 1 // how many times to run the whole set of queries.
+
+      val timeout = 60 // timeout in hours
+
+      val query_filter = Seq() // Seq() == all queries
+      //val query_filter = Seq("q1-v2.4", "q2-v2.4") // run subset of queries
+      val randomizeQueries = false // run queries in a random order. Recommended for parallel runs.
+
+      // detailed results will be written as JSON to this location.
+      val resultLocation = s"s3a://sandbox-dex-dev-us-west-2/dl/performance-datasets/tpcds/sf$scaleFactor-$format/results"
+
+      // COMMAND ----------
+
+      // Spark configuration
+      spark.conf.set("spark.sql.broadcastTimeout", "10000") // good idea for Q14, Q88.
+
+      // ... + any other configuration tuning
+
+      // COMMAND ----------
+      println(s"database: $databaseName")
+      sqlContext.sql(s"use $databaseName")
+
+      // COMMAND ----------
+
+      import com.databricks.spark.sql.perf.tpcds.TPCDS
+
+      val tpcds = new TPCDS (sqlContext = sqlContext)
+      def queries = {
+        val filtered_queries = query_filter match {
+          case Seq() => tpcds.tpcds2_4Queries
+          case _ => tpcds.tpcds2_4Queries.filter(q => query_filter.contains(q.name))
+        }
+        if (randomizeQueries) scala.util.Random.shuffle(filtered_queries) else filtered_queries
+      }
+      val experiment = tpcds.runExperiment(
+        queries,
+        iterations = iterations,
+        resultLocation = resultLocation,
+        tags = Map("runtype" -> "benchmark", "database" -> databaseName, "scale_factor" -> scaleFactor))
+
+      println(experiment.toString)
+      experiment.waitForFinish(timeout*60*60)
+
+      // COMMAND ----------
+
+      //displayHTML(experiment.html)
+
+      // COMMAND ----------
+
+      import org.apache.spark.sql.functions.{col, lit, substring}
+      val summary = experiment.getCurrentResults
+        .withColumn("Name", substring(col("name"), 2, 100))
+        .withColumn("Runtime", (col("parsingTime") + col("analysisTime") + col("optimizationTime") + col("planningTime") + col("executionTime")) / 1000.0)
+        .select("Name", "Runtime")
+
+      summary.show(10000,false)
+
+    }
+    finally {
+      spark.stop()
+    }
+
+  }
+}

@@ -38,7 +38,7 @@ object DatahubTPCDSDataGen {
 
       // Create the table schema with the specified parameters.
       import com.databricks.spark.sql.perf.tpcds.TPCDSTables
-      val tables = new TPCDSTables(sqlContext, dsdgenDir = "/app/mount/tools", scaleFactor = scaleFactor, useDoubleForDecimal = !useDecimal, useStringForDate = !useDate)
+      val tables = new TPCDSTables(sqlContext, dsdgenDir = "/tmp/dsdgen-tools/tools", scaleFactor = scaleFactor, useDoubleForDecimal = !useDecimal, useStringForDate = !useDate)
 
       import org.apache.spark.deploy.SparkHadoopUtil
       // Limit the memory used by parquet writer
@@ -59,36 +59,48 @@ object DatahubTPCDSDataGen {
       //val tableNames = Array("call_center", "catalog_page", "catalog_returns", "catalog_sales", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "inventory", "item", "promotion", "reason", "ship_mode", "store", "store_returns", "store_sales", "time_dim", "warehouse", "web_page", "web_returns", "web_sales", "web_site") // all tables
 
       // generate all the small dimension tables
-      val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
-      nonPartitionedTables.foreach { t => {
-        tables.genData(
-          location = rootDir,
-          format = format,
-          overwrite = true,
-          partitionTables = true,
-          clusterByPartitionColumns = shuffle,
-          filterOutNullPartitionValues = filterNull,
-          tableFilter = t,
-          numPartitions = dsdgen_nonpartitioned)
-      }
-      }
-      println("Done generating non partitioned tables.")
+      import java.time.LocalDateTime
+      val startTime = LocalDateTime.now()
+      /*
+  println(s"$startTime - Generating non partitioned tables.")
 
-      // leave the biggest/potentially hardest tables to be generated last.
-      val partitionedTables = Array("inventory", "web_returns", "catalog_returns", "store_returns", "web_sales", "catalog_sales", "store_sales")
-      partitionedTables.foreach { t => {
-        tables.genData(
-          location = rootDir,
-          format = format,
-          overwrite = true,
-          partitionTables = true,
-          clusterByPartitionColumns = shuffle,
-          filterOutNullPartitionValues = filterNull,
-          tableFilter = t,
-          numPartitions = dsdgen_partitioned)
-      }
-      }
-      println("Done generating partitioned tables.")
+  val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
+  nonPartitionedTables.foreach { t => {
+    tables.genData(
+      location = rootDir,
+      format = format,
+      overwrite = true,
+      partitionTables = true,
+      clusterByPartitionColumns = shuffle,
+      filterOutNullPartitionValues = filterNull,
+      tableFilter = t,
+      numPartitions = dsdgen_nonpartitioned)
+  }
+  }
+  val endTime = LocalDateTime.now()
+  println(s"${endTime} - Done generating non partitioned tables.")
+
+  val startTimeD = LocalDateTime.now()
+  println(s"$startTimeD - Generating partitioned tables.")
+
+  // leave the biggest/potentially hardest tables to be generated last.
+  val partitionedTables = Array("inventory", "web_returns", "catalog_returns", "store_returns", "web_sales", "catalog_sales", "store_sales")
+  partitionedTables.foreach { t => {
+    tables.genData(
+      location = rootDir,
+      format = format,
+      overwrite = true,
+      partitionTables = true,
+      clusterByPartitionColumns = shuffle,
+      filterOutNullPartitionValues = filterNull,
+      tableFilter = t,
+      numPartitions = dsdgen_partitioned)
+  }
+  }
+  val endTimeD = LocalDateTime.now()
+  println(s"$endTimeD - Done generating partitioned tables.")
+
+   */
 
       // COMMAND ----------
 
