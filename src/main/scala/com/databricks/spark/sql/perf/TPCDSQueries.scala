@@ -22,7 +22,7 @@ object TPCDSQueries {
 
       // Database to be used:
       // TPCDS Scale factor
-      val scaleFactor = "1000"
+      val scaleFactor = "10000"
       // If false, float type will be used instead of decimal.
       val useDecimal = true
       // If false, string type will be used instead of date.

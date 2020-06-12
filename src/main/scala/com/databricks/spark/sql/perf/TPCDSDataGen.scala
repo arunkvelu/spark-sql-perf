@@ -13,7 +13,7 @@ object TPCDSDataGen {
 
       val sparkContext = spark.sparkContext
       val sqlContext = spark.sqlContext
-      val scaleFactor = "1000"
+      val scaleFactor = "10000"
 
       // data format.
       val format = "parquet"
@@ -63,7 +63,7 @@ object TPCDSDataGen {
 
       val startTime = LocalDateTime.now()
       println(s"$startTime - Generating non partitioned tables.")
-/*      val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
+      val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
       nonPartitionedTables.foreach { t => {
         tables.genData(
           location = rootDir,
@@ -83,7 +83,7 @@ object TPCDSDataGen {
       println(s"$startTimeD - Generating partitioned tables.")
 
       // leave the biggest/potentially hardest tables to be generated last.
-      val partitionedTables = Array("inventory", "web_returns", "catalog_returns", "store_returns", "web_sales", "catalog_sales", "store_sales")
+      val partitionedTables = Array("catalog_sales", "store_sales", "inventory", "web_returns", "catalog_returns", "store_returns", "web_sales")
       partitionedTables.foreach { t => {
         tables.genData(
           location = rootDir,
@@ -97,7 +97,7 @@ object TPCDSDataGen {
       }
       }
       val endTimeD = LocalDateTime.now()
-      println(s"$endTimeD - Done generating partitioned tables.")*/
+      println(s"$endTimeD - Done generating partitioned tables.")
 
       // COMMAND ----------
 

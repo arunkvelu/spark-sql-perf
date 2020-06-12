@@ -61,7 +61,7 @@ object DatahubTPCDSDataGen {
       // generate all the small dimension tables
       import java.time.LocalDateTime
       val startTime = LocalDateTime.now()
-      /*
+
   println(s"$startTime - Generating non partitioned tables.")
 
   val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
@@ -100,7 +100,6 @@ object DatahubTPCDSDataGen {
   val endTimeD = LocalDateTime.now()
   println(s"$endTimeD - Done generating partitioned tables.")
 
-   */
 
       // COMMAND ----------
 
