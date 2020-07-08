@@ -32,7 +32,7 @@ initialCommands in console :=
     |import sqlContext.implicits._
   """.stripMargin
 
-libraryDependencies += "com.github.scopt" %% "scopt" % "3.7.1"
+libraryDependencies += "com.github.scopt" %% "scopt" % "4.0.0-RC2"
 
 libraryDependencies += "com.twitter" %% "util-jvm" % "6.45.0" % "provided"
 
