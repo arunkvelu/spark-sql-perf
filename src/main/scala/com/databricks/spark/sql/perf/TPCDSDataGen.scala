@@ -1,9 +1,62 @@
 package com.databricks.spark.sql.perf
+
 import org.apache.spark.sql.SparkSession
+
+case class DatagenConfig(
+                          path: String = "s3a://",
+                          scaleFactor: String = "1",
+                          format: String = "parquet",
+                          skipDatagen: Boolean = false,
+                          useDecimal: Boolean = true,
+                          useDate: Boolean = true,
+                          filterNull: Boolean = false,
+                          shuffle: Boolean = true)
 
 object TPCDSDataGen {
 
   def main(args: Array[String]): Unit = {
+
+    val parser = new scopt.OptionParser[DatagenConfig]("dex-tpcds-data") {
+      head("dex-tpcds-data", "0.1.0")
+      opt[String]('p', "path")
+        .action { (x, c) => c.copy(path = x) }
+        .text("Path for generating TPC-DS data")
+        .required()
+      opt[String]('s', "scaleFactor")
+        .action ((x, c) => c.copy(scaleFactor = x))
+        .text("The size of the generated dataset in GBs")
+        .required()
+      opt[String]('f', "format")
+        .action((x, c) => c.copy(format = x))
+        .text("Format of the generated data e.g.: parquet, orc etc")
+      opt[Boolean]("skipDatagen")
+        .action((x, c) => c.copy(skipDatagen = x))
+        .text("Skip datagen, external table generation only")
+      opt[Boolean]("useDecimal")
+        .action((x, c) => c.copy(useDecimal = x))
+        .text("If false, float type will be used instead of decimal")
+      opt[Boolean]("useDate")
+        .action((x, c) => c.copy(useDate = x))
+        .text("If false, string type will be used instead of date")
+      opt[Boolean]("filterNull")
+        .action((x, c) => c.copy(filterNull = x))
+        .text("If true, rows with nulls in partition key will be thrown away")
+      opt[Boolean]("shuffle")
+        .action((x, c) => c.copy(shuffle = x))
+        .text("If true, partitions will be coalesced into a single file during generation")
+      help("help")
+        .text("prints this usage text")
+    }
+
+    parser.parse(args, DatagenConfig()) match {
+      case Some(config) =>
+        runDatagen(config);
+      case _ =>
+      // arguments are bad, error message will have been displayed
+    }
+  }
+
+  def runDatagen(datagenConfig: DatagenConfig) {
 
     val spark = SparkSession.builder
       .appName("DEXTPCDSDataGen")
@@ -13,33 +66,25 @@ object TPCDSDataGen {
 
       val sparkContext = spark.sparkContext
       val sqlContext = spark.sqlContext
-      val scaleFactor = "10000"
-
-      // data format.
-      val format = "parquet"
-      // If false, float type will be used instead of decimal.
-      val useDecimal = true
-      // If false, string type will be used instead of date.
-      val useDate = true
-      // If true, rows with nulls in partition key will be thrown away.
-      val filterNull = false
-      // If true, partitions will be coalesced into a single file during generation.
-      val shuffle = true
 
       // s3/dbfs path to generate the data to.
       //val rootDir = s"s3a://dex-dev-us-west-2/dl2/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
-      val rootDir = s"s3a://sandbox-dex-dev-us-west-2/dl/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
+      val rootDir = s"${datagenConfig.path}/sf${datagenConfig.scaleFactor}-${datagenConfig.format}/useDecimal=${datagenConfig.useDecimal},useDate=${datagenConfig.useDate},filterNull=${datagenConfig.filterNull}-dex"
       // name of database to be created.
-      val databaseName = s"dex_tpcds_sf${scaleFactor}" +
-        s"""_${if (useDecimal) "with" else "no"}decimal""" +
-        s"""_${if (useDate) "with" else "no"}date""" +
-        s"""_${if (filterNull) "no" else "with"}nulls"""
+      val databaseName = s"dex_tpcds_sf${datagenConfig.scaleFactor}" +
+        s"""_${if (datagenConfig.useDecimal) "with" else "no"}decimal""" +
+        s"""_${if (datagenConfig.useDate) "with" else "no"}date""" +
+        s"""_${if (datagenConfig.filterNull) "no" else "with"}nulls"""
 
       // COMMAND ----------
 
       // Create the table schema with the specified parameters.
       import com.databricks.spark.sql.perf.tpcds.TPCDSTables
-      val tables = new TPCDSTables(sqlContext, dsdgenDir = "/app/mount/tools", scaleFactor = scaleFactor, useDoubleForDecimal = !useDecimal, useStringForDate = !useDate)
+      val tables = new TPCDSTables(sqlContext,
+        dsdgenDir = "/app/mount/tools",
+        scaleFactor = datagenConfig.scaleFactor,
+        useDoubleForDecimal = !datagenConfig.useDecimal,
+        useStringForDate = !datagenConfig.useDate)
 
       import org.apache.spark.deploy.SparkHadoopUtil
       // Limit the memory used by parquet writer
@@ -51,8 +96,8 @@ object TPCDSDataGen {
       // Don't write too huge files.
       sqlContext.setConf("spark.sql.files.maxRecordsPerFile", "20000000")
 
-      val dsdgen_partitioned=10000 // recommended for SF10000+.
-      val dsdgen_nonpartitioned=10 // small tables do not need much parallelism in generation.
+      val dsdgen_partitioned = 10000 // recommended for SF10000+.
+      val dsdgen_nonpartitioned = 10 // small tables do not need much parallelism in generation.
       // COMMAND ----------
 
       // val tableNames = Array("") // Array("") = generate all.
@@ -62,42 +107,45 @@ object TPCDSDataGen {
       import java.time.LocalDateTime
 
       val startTime = LocalDateTime.now()
-      println(s"$startTime - Generating non partitioned tables.")
-      val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
-      nonPartitionedTables.foreach { t => {
-        tables.genData(
-          location = rootDir,
-          format = format,
-          overwrite = true,
-          partitionTables = true,
-          clusterByPartitionColumns = shuffle,
-          filterOutNullPartitionValues = filterNull,
-          tableFilter = t,
-          numPartitions = dsdgen_nonpartitioned)
-      }
-      }
-      val endTime = LocalDateTime.now()
-      println(s"${endTime} - Done generating non partitioned tables.")
+      if (!datagenConfig.skipDatagen){
+        println(s"$startTime - Generating non partitioned tables.")
+        val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
+        nonPartitionedTables.foreach { t => {
+          tables.genData(
+            location = rootDir,
+            format = datagenConfig.format,
+            overwrite = true,
+            partitionTables = true,
+            clusterByPartitionColumns = datagenConfig.shuffle,
+            filterOutNullPartitionValues = datagenConfig.filterNull,
+            tableFilter = t,
+            numPartitions = dsdgen_nonpartitioned)
+        }
+        }
+        val endTime = LocalDateTime.now()
+        println(s"${endTime} - Done generating non partitioned tables.")
 
-      val startTimeD = LocalDateTime.now()
-      println(s"$startTimeD - Generating partitioned tables.")
+        val startTimeD = LocalDateTime.now()
+        println(s"$startTimeD - Generating partitioned tables.")
 
-      // leave the biggest/potentially hardest tables to be generated last.
-      val partitionedTables = Array("catalog_sales", "store_sales", "inventory", "web_returns", "catalog_returns", "store_returns", "web_sales")
-      partitionedTables.foreach { t => {
-        tables.genData(
-          location = rootDir,
-          format = format,
-          overwrite = true,
-          partitionTables = true,
-          clusterByPartitionColumns = shuffle,
-          filterOutNullPartitionValues = filterNull,
-          tableFilter = t,
-          numPartitions = dsdgen_partitioned)
+        // leave the biggest/potentially hardest tables to be generated last.
+        val partitionedTables = Array("catalog_sales", "store_sales", "inventory", "web_returns", "catalog_returns", "store_returns", "web_sales")
+        partitionedTables.foreach { t => {
+          tables.genData(
+            location = rootDir,
+            format = datagenConfig.format,
+            overwrite = true,
+            partitionTables = true,
+            clusterByPartitionColumns = datagenConfig.shuffle,
+            filterOutNullPartitionValues = datagenConfig.filterNull,
+            tableFilter = t,
+            numPartitions = dsdgen_partitioned)
+        }
+        }
+        val endTimeD = LocalDateTime.now()
+        println(s"$endTimeD - Done generating partitioned tables.")
       }
-      }
-      val endTimeD = LocalDateTime.now()
-      println(s"$endTimeD - Done generating partitioned tables.")
+
 
       // COMMAND ----------
 
@@ -115,7 +163,7 @@ object TPCDSDataGen {
 
       // COMMAND ----------
 
-      tables.createExternalTables(rootDir, format, databaseName, overwrite = true, discoverPartitions = true)
+      tables.createExternalTables(rootDir, datagenConfig.format, databaseName, overwrite = true, discoverPartitions = true)
 
       // COMMAND ----------
 
