@@ -6,6 +6,7 @@ case class DatagenConfig(
                           path: String = "s3a://",
                           scaleFactor: String = "1",
                           format: String = "parquet",
+                          toolsDir: String = "/app/mount/tools",
                           skipDatagen: Boolean = false,
                           useDecimal: Boolean = true,
                           useDate: Boolean = true,
@@ -29,6 +30,9 @@ object TPCDSDataGen {
       opt[String]('f', "format")
         .action((x, c) => c.copy(format = x))
         .text("Format of the generated data e.g.: parquet, orc etc")
+      opt[String]("toolsDir")
+        .action((x, c) => c.copy(toolsDir = x))
+        .text("Location of all files required to create data")
       opt[Boolean]("skipDatagen")
         .action((x, c) => c.copy(skipDatagen = x))
         .text("Skip datagen, external table generation only")
@@ -81,7 +85,7 @@ object TPCDSDataGen {
       // Create the table schema with the specified parameters.
       import com.databricks.spark.sql.perf.tpcds.TPCDSTables
       val tables = new TPCDSTables(sqlContext,
-        dsdgenDir = "/app/mount/tools",
+        dsdgenDir = datagenConfig.toolsDir,
         scaleFactor = datagenConfig.scaleFactor,
         useDoubleForDecimal = !datagenConfig.useDecimal,
         useStringForDate = !datagenConfig.useDate)
