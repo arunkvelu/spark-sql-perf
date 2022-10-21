@@ -1,6 +1,7 @@
 // You may use this file to add plugin dependencies for sbt.
 
-resolvers += "Spark Packages repo" at "https://dl.bintray.com/spark-packages/maven/"
+// According to https://spark.apache.org/news/new-repository-service.html, changing resolver
+resolvers += "spark-packages" at "https://repos.spark-packages.org/"
 
 resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
