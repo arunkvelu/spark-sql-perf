@@ -7,6 +7,9 @@ organization := "com.databricks"
 
 scalaVersion := "2.11.12"
 
+// skip running test, we don't need it
+test in assembly := {}
+
 crossScalaVersions := Seq("2.11.12","2.12.8")
 
 sparkPackageName := "databricks/spark-sql-perf"
