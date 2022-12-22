@@ -11,7 +11,9 @@ case class DatagenConfig(
                           useDecimal: Boolean = true,
                           useDate: Boolean = true,
                           filterNull: Boolean = false,
-                          shuffle: Boolean = true)
+                          shuffle: Boolean = true,
+                          nonPartitionedTablesList: Seq[String] = Seq(),
+                          partitionedTablesList: Seq[String] = Seq())
 
 object TPCDSDataGen {
 
@@ -48,6 +50,14 @@ object TPCDSDataGen {
       opt[Boolean]("shuffle")
         .action((x, c) => c.copy(shuffle = x))
         .text("If true, partitions will be coalesced into a single file during generation")
+      opt[Seq[String]]("nonPartitionedTablesList")
+        .valueName("<v1>,<v2>")
+        .action((x, c) => c.copy(nonPartitionedTablesList = x))
+        .text("\"\" means generate all non-partitioned tables")
+      opt[Seq[String]]("partitionedTablesList")
+        .valueName("<v1>,<v2>")
+        .action((x, c) => c.copy(partitionedTablesList = x))
+        .text("\"\" means generate all partitioned tables")
       help("help")
         .text("prints this usage text")
     }
@@ -71,7 +81,7 @@ object TPCDSDataGen {
       val sparkContext = spark.sparkContext
       val sqlContext = spark.sqlContext
 
-      // s3/dbfs path to generate the data to.
+      // s3/abfs path to generate the data to.
       //val rootDir = s"s3a://dex-dev-us-west-2/dl2/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
       val rootDir = s"${datagenConfig.path}/sf${datagenConfig.scaleFactor}-${datagenConfig.format}/useDecimal=${datagenConfig.useDecimal},useDate=${datagenConfig.useDate},filterNull=${datagenConfig.filterNull}-dex"
       // name of database to be created.
@@ -113,7 +123,12 @@ object TPCDSDataGen {
       val startTime = LocalDateTime.now()
       if (!datagenConfig.skipDatagen){
         println(s"$startTime - Generating non partitioned tables.")
-        val nonPartitionedTables = Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
+        val nonPartitionedTables = if (datagenConfig.nonPartitionedTablesList.isEmpty) {
+            Array("call_center", "catalog_page", "customer", "customer_address", "customer_demographics", "date_dim", "household_demographics", "income_band", "item", "promotion", "reason", "ship_mode", "store", "time_dim", "warehouse", "web_page", "web_site")
+        }
+        else {
+            datagenConfig.nonPartitionedTablesList.toArray
+        }
         nonPartitionedTables.foreach { t => {
           tables.genData(
             location = rootDir,
@@ -133,7 +148,11 @@ object TPCDSDataGen {
         println(s"$startTimeD - Generating partitioned tables.")
 
         // leave the biggest/potentially hardest tables to be generated last.
-        val partitionedTables = Array("catalog_sales", "store_sales", "inventory", "web_returns", "catalog_returns", "store_returns", "web_sales")
+        val partitionedTables = if (datagenConfig.partitionedTablesList.isEmpty) {
+            Array("catalog_sales", "store_sales", "inventory", "web_returns", "catalog_returns", "store_returns", "web_sales")
+        } else {
+            datagenConfig.partitionedTablesList.toArray
+        }
         partitionedTables.foreach { t => {
           tables.genData(
             location = rootDir,
