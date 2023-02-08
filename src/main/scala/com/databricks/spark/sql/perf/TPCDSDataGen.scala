@@ -13,7 +13,8 @@ case class DatagenConfig(
                           filterNull: Boolean = false,
                           shuffle: Boolean = true,
                           nonPartitionedTablesList: Seq[String] = Seq(),
-                          partitionedTablesList: Seq[String] = Seq())
+                          partitionedTablesList: Seq[String] = Seq(),
+                          dbNamePrefix: String = "dex_tpcds")
 
 object TPCDSDataGen {
 
@@ -58,6 +59,9 @@ object TPCDSDataGen {
         .valueName("<v1>,<v2>")
         .action((x, c) => c.copy(partitionedTablesList = x))
         .text("\"\" means generate all partitioned tables")
+      opt[String]("dbNamePrefix")
+        .action((x, c) => c.copy(dbNamePrefix = x))
+        .text("Database name prefix; Default: dex_tpcds")
       help("help")
         .text("prints this usage text")
     }
@@ -84,11 +88,15 @@ object TPCDSDataGen {
       // s3/abfs path to generate the data to.
       //val rootDir = s"s3a://dex-dev-us-west-2/dl2/performance-datasets/tpcds/sf$scaleFactor-$format/useDecimal=$useDecimal,useDate=$useDate,filterNull=$filterNull-dex"
       val rootDir = s"${datagenConfig.path}/sf${datagenConfig.scaleFactor}-${datagenConfig.format}/useDecimal=${datagenConfig.useDecimal},useDate=${datagenConfig.useDate},filterNull=${datagenConfig.filterNull}-dex"
+
+      println(s"Name of the database - $datagenConfig.dbNamePrefix")
       // name of database to be created.
-      val databaseName = s"dex_tpcds_sf${datagenConfig.scaleFactor}" +
+      val databaseName = s"${datagenConfig.dbNamePrefix}_sf${datagenConfig.scaleFactor}" +
         s"""_${if (datagenConfig.useDecimal) "with" else "no"}decimal""" +
         s"""_${if (datagenConfig.useDate) "with" else "no"}date""" +
         s"""_${if (datagenConfig.filterNull) "no" else "with"}nulls"""
+
+      println(s"Name of the database - $databaseName")
 
       // COMMAND ----------
 
